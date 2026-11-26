@@ -1,0 +1,399 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <title>CraftBlox: 3 Dimensions</title>
+  <style>
+    *{box-sizing:border-box;user-select:none;-webkit-user-select:none;-webkit-touch-callout:none}
+    html,body{margin:0;padding:0;width:100%;height:100%;overflow:hidden;overscroll-behavior:none;touch-action:none;font-family:'Courier New',ui-monospace,SFMono-Regular,Menlo,monospace;background:#7dd3fc}
+    canvas{display:block;width:100%;height:100%;touch-action:none}
+    #crosshair{position:fixed;top:50%;left:50%;width:18px;height:18px;transform:translate(-50%,-50%);pointer-events:none;z-index:10}
+    #crosshair::before,#crosshair::after{content:'';position:absolute;background:rgba(255,255,255,.95);box-shadow:0 0 2px #000}
+    #crosshair::before{top:8px;left:0;width:18px;height:2px}
+    #crosshair::after{left:8px;top:0;height:18px;width:2px}
+    #hud-top{position:fixed;top:max(8px,env(safe-area-inset-top));left:max(8px,env(safe-area-inset-left));right:max(8px,env(safe-area-inset-right));display:flex;justify-content:space-between;align-items:flex-start;gap:5px;pointer-events:none;z-index:12}
+    .panel{background:rgba(28,25,23,.88);color:#fff;padding:5px 9px;border-top:2px solid #78716c;border-left:2px solid #78716c;border-right:2px solid #0c0a09;border-bottom:2px solid #0c0a09;font-size:11px;pointer-events:auto;box-shadow:0 4px 10px rgba(0,0,0,.45)}
+    .srow{display:flex;align-items:center;gap:6px;flex-wrap:wrap;font-weight:900}
+    .bux{display:inline-flex;align-items:center;gap:4px;background:linear-gradient(180deg,#22c55e,#15803d);color:#fff;padding:2px 7px;border:2px solid #86efac;font-size:12px;cursor:pointer;text-shadow:1px 1px 0 #000}
+    .bux i{font-style:normal;background:#052e16;color:#4ade80;padding:0 3px;font-size:9px;font-weight:900}
+    .tbtns{display:flex;gap:4px;flex-wrap:wrap;justify-content:flex-end;pointer-events:auto;max-width:66vw}
+    .hb{background:#6b7280;color:#fff;border-top:2px solid #d1d5db;border-left:2px solid #d1d5db;border-right:2px solid #1f2937;border-bottom:2px solid #1f2937;padding:5px 7px;font-size:10px;font-weight:900;cursor:pointer;text-shadow:1px 1px 0 #000;font-family:inherit}
+    .hb:active{transform:translateY(1px)}
+    .hb.g{background:#16a34a;border-top-color:#86efac;border-left-color:#86efac;border-right-color:#14532d;border-bottom-color:#14532d}
+    .hb.r{background:linear-gradient(180deg,#f97316,#dc2626);border-top-color:#fde047;border-left-color:#fde047;border-right-color:#7f1d1d;border-bottom-color:#7f1d1d}
+    .hb.p{background:#7c3aed;border-top-color:#c4b5fd;border-left-color:#c4b5fd;border-right-color:#4c1d95;border-bottom-color:#4c1d95}
+    .hb.b{background:#0284c7;border-top-color:#7dd3fc;border-left-color:#7dd3fc;border-right-color:#0c4a6e;border-bottom-color:#0c4a6e}
+    .hb.y{background:#b45309;border-top-color:#fde047;border-left-color:#fde047;border-right-color:#451a03;border-bottom-color:#451a03}
+    #announce{position:fixed;top:max(56px,calc(env(safe-area-inset-top) + 48px));left:50%;transform:translateX(-50%);background:linear-gradient(90deg,#991b1b,#ea580c);color:#fff;padding:8px 18px;border:2px solid #fde047;font-weight:900;font-size:13px;display:none;z-index:20;text-align:center;max-width:90vw;text-shadow:1px 1px 0 #000}
+    #boss-wrap{position:fixed;top:max(54px,calc(env(safe-area-inset-top) + 46px));left:50%;transform:translateX(-50%);width:min(280px,76vw);background:rgba(15,23,42,.9);padding:5px 9px;border:2px solid #ef4444;display:none;z-index:13;text-align:center;color:#fca5a5;font-size:11px;font-weight:900;text-shadow:1px 1px 0 #000}
+    #boss-bg{width:100%;height:9px;background:#1e293b;overflow:hidden;margin-top:3px;border:1px solid #000}
+    #boss-fill{width:100%;height:100%;background:linear-gradient(90deg,#dc2626,#f97316)}
+    #scanner-hud{font-size:10px;color:#22d3ee;display:none;margin-top:2px}
+
+    #mc-bars{position:fixed;bottom:max(50px,calc(env(safe-area-inset-bottom) + 46px));left:50%;transform:translateX(-50%);display:flex;flex-direction:column;align-items:center;gap:2px;pointer-events:none;z-index:12}
+    .mc-stat-row{display:flex;align-items:center;gap:6px;background:rgba(0,0,0,.58);padding:2px 8px;border:1px solid rgba(255,255,255,.22);font-size:11px;color:#fff;font-weight:900}
+    #hearts-bar{font-size:12.5px;letter-spacing:.5px;white-space:nowrap;text-shadow:1px 1px 0 #000}
+    #xp-wrap{width:min(320px,84vw);height:6px;background:#1a1a1a;border:1.5px solid #000;position:relative}
+    #xp-fill{height:100%;width:0%;background:linear-gradient(90deg,#4ade80,#84cc16)}
+    #xp-num{position:absolute;top:-11px;left:50%;transform:translateX(-50%);color:#a3e635;font-size:10px;font-weight:900;text-shadow:1px 1px 0 #000,-1px -1px 0 #000}
+
+    #hotbar{position:fixed;bottom:max(6px,env(safe-area-inset-bottom));left:50%;transform:translateX(-50%);display:flex;gap:2px;padding:3px;background:#3a3a3a;border:2px solid #1e1e1e;box-shadow:inset 0 0 0 2px #7c7c7c;z-index:12;max-width:97vw;overflow-x:auto}
+    .slot{width:34px;height:36px;flex-shrink:0;background:#8b8b8b;border-top:2px solid #373737;border-left:2px solid #373737;border-bottom:2px solid #fff;border-right:2px solid #fff;display:flex;flex-direction:column;align-items:center;justify-content:center;color:#fff;font-size:14px;font-weight:900;cursor:pointer;position:relative;text-shadow:1px 1px 0 #000}
+    .slot.active{box-shadow:0 0 0 2px #fff,inset 0 0 0 2px #facc15;background:#a3a3a3}
+    .slot.invbtn{background:#5c5c5c;font-size:13px;width:36px}
+    .cnt{position:absolute;bottom:0;right:2px;font-size:9px;font-weight:900;color:#fff;text-shadow:1px 1px 0 #000}
+    .sw{width:17px;height:17px;border:1px solid rgba(0,0,0,.6)}
+
+    #joy-z{position:fixed;left:max(10px,env(safe-area-inset-left));bottom:max(96px,calc(env(safe-area-inset-bottom) + 90px));width:98px;height:98px;border-radius:50%;background:rgba(15,23,42,.36);border:2px solid rgba(255,255,255,.36);z-index:12;touch-action:none}
+    #joy-k{position:absolute;left:50%;top:50%;width:36px;height:36px;margin:-18px 0 0 -18px;border-radius:50%;background:rgba(255,255,255,.85);pointer-events:none}
+    #act{position:fixed;right:max(10px,env(safe-area-inset-right));bottom:max(96px,calc(env(safe-area-inset-bottom) + 90px));display:grid;grid-template-columns:52px 52px;gap:6px;z-index:12}
+    .tb{width:52px;height:52px;border-top:3px solid rgba(255,255,255,.65);border-left:3px solid rgba(255,255,255,.65);border-right:3px solid rgba(0,0,0,.6);border-bottom:3px solid rgba(0,0,0,.6);color:#fff;font-weight:900;font-size:9.5px;display:flex;align-items:center;justify-content:center;text-align:center;touch-action:none;cursor:pointer;text-shadow:1px 1px 0 #000}
+    .tb.m{background:rgba(220,38,38,.86)}.tb.b{background:rgba(37,99,235,.86)}.tb.r{background:rgba(234,179,8,.88);height:40px}.tb.j{background:rgba(22,163,74,.88);height:40px;font-size:11px}
+
+    #toast{position:fixed;top:92px;left:50%;transform:translateX(-50%);background:rgba(28,25,23,.94);color:#fde047;padding:6px 14px;border:2px solid #fde047;font-weight:900;font-size:12px;opacity:0;transition:opacity .25s;pointer-events:none;z-index:45;white-space:nowrap;text-shadow:1px 1px 0 #000}
+    #flash{position:fixed;inset:0;background:rgba(255,40,40,.45);opacity:0;pointer-events:none;transition:opacity .2s;z-index:17}
+    .modal{position:fixed;inset:0;background:rgba(10,15,28,.86);display:none;align-items:center;justify-content:center;z-index:30;padding:10px}
+    #overlay{display:flex;z-index:25;background:repeating-linear-gradient(45deg,#3b2416 0 18px,#2f1c11 18px 36px)}
+    .mc-title-card{background:rgba(20,14,10,.9);border-top:4px solid #78716c;border-left:4px solid #78716c;border-right:4px solid #1c1917;border-bottom:4px solid #1c1917;padding:20px;max-width:440px;width:100%;text-align:center;color:#fff;box-shadow:0 20px 50px rgba(0,0,0,.8)}
+    .mc-logo{font-size:34px;font-weight:900;letter-spacing:2px;color:#e7e5e4;text-shadow:0 4px 0 #44403c,0 6px 12px #000;margin:0}
+    .mc-splash{color:#facc15;font-weight:900;font-size:12px;text-shadow:1px 1px 0 #000;transform:rotate(-3deg);margin:4px 0 12px}
+    .card{background:linear-gradient(180deg,#404040,#262626);color:#fff;padding:15px;border-top:3px solid #a3a3a3;border-left:3px solid #a3a3a3;border-right:3px solid #171717;border-bottom:3px solid #171717;text-align:center;max-width:560px;width:100%;max-height:88vh;overflow-y:auto;box-shadow:0 20px 45px rgba(0,0,0,.75)}
+    .card h1,.card h2{margin:0 0 6px;color:#fde047;text-shadow:2px 2px 0 #000}
+    .pbtn{background:linear-gradient(180deg,#6b7280,#4b5563);color:#fff;font-weight:900;font-size:14px;padding:10px 24px;border-top:3px solid #d1d5db;border-left:3px solid #d1d5db;border-right:3px solid #1f2937;border-bottom:3px solid #1f2937;cursor:pointer;text-shadow:1px 1px 0 #000;font-family:inherit}
+    .pbtn.grn{background:linear-gradient(180deg,#22c55e,#15803d);border-top-color:#86efac;border-left-color:#86efac;border-right-color:#052e16;border-bottom-color:#052e16}
+    .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(145px,1fr));gap:8px;margin:10px 0;text-align:left}
+    .box{background:#333;border-top:2px solid #666;border-left:2px solid #666;border-right:2px solid #111;border-bottom:2px solid #111;padding:9px;display:flex;flex-direction:column;justify-content:space-between;gap:6px;font-size:11px}
+    .box.own{border-color:#4ade80;background:#1f3324}
+    .ab{padding:5px 7px;border-top:2px solid rgba(255,255,255,.35);border-left:2px solid rgba(255,255,255,.35);border-right:2px solid rgba(0,0,0,.5);border-bottom:2px solid rgba(0,0,0,.5);font-weight:900;font-size:10.5px;cursor:pointer;color:#fff;background:#2563eb;text-shadow:1px 1px 0 #000;font-family:inherit}
+    .ab.g{background:#16a34a}.ab.r{background:#dc2626}.ab.y{background:#d97706}.ab.p{background:#7c3aed}.ab:disabled{background:#444;color:#999}
+    .sec{background:rgba(0,0,0,.35);border:1.5px solid #555;padding:9px;margin:7px 0;text-align:left}
+    .sec h3{margin:0 0 6px;font-size:12px;color:#fde047}
+    .row{display:flex;justify-content:space-between;align-items:center;padding:5px 0;border-bottom:1px solid rgba(255,255,255,.08);font-size:11.5px;gap:4px;flex-wrap:wrap}
+    .row:last-child{border:none}
+    .tin{width:100%;padding:8px 10px;border:2px solid #888;background:#111;color:#fff;font-size:14px;margin:5px 0;user-select:text;-webkit-user-select:text;font-family:inherit}
+
+    .mc-win{background:#c6c6c6;padding:10px;border-radius:2px;border-top:3px solid #fff;border-left:3px solid #fff;border-right:3px solid #555;border-bottom:3px solid #555;max-width:360px;width:100%;box-shadow:0 18px 40px rgba(0,0,0,.75);color:#222}
+    .mc-top{display:flex;gap:6px;align-items:flex-start;margin-bottom:8px}
+    .mc-col{display:flex;flex-direction:column;gap:2px}
+    .mc-player-box{width:88px;height:126px;background:#000;border-top:2px solid #373737;border-left:2px solid #373737;border-right:2px solid #fff;border-bottom:2px solid #fff;display:flex;flex-direction:column;align-items:center;justify-content:center;color:#facc15;font-size:8.5px;font-weight:900;gap:3px}
+    .mc-off{align-self:flex-end}
+    .mc-craft-area{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;padding-top:10px}
+    .mc-cwrap{display:flex;align-items:center;gap:6px}
+    .mc-2x2{display:grid;grid-template-columns:repeat(2,30px);gap:2px}
+    .mc-arrow{font-size:20px;font-weight:900;color:#8b8b8b}
+    .mc-grid9{display:grid;grid-template-columns:repeat(9,1fr);gap:2px;margin-bottom:6px}
+    .ms{width:100%;aspect-ratio:1;min-width:29px;background:#8b8b8b;border-top:2px solid #373737;border-left:2px solid #373737;border-right:2px solid #fff;border-bottom:2px solid #fff;display:flex;align-items:center;justify-content:center;position:relative;cursor:pointer;font-size:14px;color:#fff}
+    .ms.sel{background:#a6a6a6;box-shadow:inset 0 0 0 2px #facc15}
+    .ms-hint{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;opacity:.22;font-size:12px;pointer-events:none}
+    .mc-btn{background:#9e9e9e;border-top:2px solid #fff;border-left:2px solid #fff;border-right:2px solid #4a4a4a;border-bottom:2px solid #4a4a4a;padding:5px 12px;font-size:11px;font-weight:800;color:#1f1f1f;cursor:pointer;font-family:inherit}
+
+    .holo-card{background:linear-gradient(165deg,#060b19,#111836 60%,#0a0f24);border:2.5px solid #22d3ee;border-radius:18px;padding:16px;max-width:350px;width:100%;color:#e0f2fe;text-align:center;box-shadow:0 0 34px rgba(34,211,238,.45),inset 0 0 24px rgba(168,85,247,.25)}
+    .holo-hdr{display:flex;justify-content:space-between;align-items:center;font-size:10px;font-weight:900;letter-spacing:1.2px;color:#22d3ee;border-bottom:1px solid rgba(34,211,238,.3);padding-bottom:6px;margin-bottom:10px}
+    .holo-stat{background:rgba(168,85,247,.22);border:1px solid #c084fc;color:#f5d0fe;padding:2px 8px;border-radius:999px;font-size:9.5px}
+    .holo-stat.ok{background:rgba(34,211,238,.25);border-color:#22d3ee;color:#a5f3fc}
+    .holo-lock{display:flex;align-items:center;justify-content:center;gap:14px;margin:4px 0 8px}
+    .holo-dots{background:rgba(6,182,212,.12);border:1.5px solid #22d3ee;border-radius:10px;padding:8px 12px;font-size:22px;font-weight:900;letter-spacing:8px;color:#f472b6;text-shadow:0 0 10px #ec4899;min-height:42px;margin-bottom:10px}
+    .holo-pad{background:linear-gradient(145deg,#1e293b,#0f172a);border:2px solid #475569;border-radius:14px;padding:10px;box-shadow:inset 0 2px 10px rgba(0,0,0,.6)}
+    .kgrid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+    .kbtn{padding:12px 0;border-radius:9px;border:1.5px solid #38bdf8;background:rgba(15,23,42,.9);color:#e0f2fe;font-size:18px;font-weight:800;cursor:pointer;box-shadow:0 0 10px rgba(34,211,238,.25)}
+    .kbtn.purp{border-color:#c084fc;background:rgba(88,28,135,.45);color:#f3e8ff}.kbtn.cyan{border-color:#22d3ee;background:rgba(8,145,178,.45);color:#cffafe}
+
+    #admin-modal .card{background:linear-gradient(170deg,#1a0505,#2c0a06 55%,#140404);border:3px solid #f97316;box-shadow:0 0 36px rgba(249,115,22,.6);border-radius:12px}
+    .lava-bar{background:linear-gradient(90deg,#dc2626,#f97316,#eab308);padding:8px 12px;border-radius:8px;border:2px solid #fde047;font-weight:900;font-size:13.5px;text-shadow:0 2px 3px #000;margin-bottom:8px;display:flex;justify-content:space-between;align-items:center}
+    #admin-modal .sec{background:rgba(20,5,5,.72);border:1.5px solid rgba(249,115,22,.45)}
+    #admin-modal .sec h3{color:#fb923c;text-transform:uppercase;letter-spacing:.7px;font-size:11px}
+    .lv-btn{padding:7px 9px;border:2px solid rgba(255,255,255,.35);border-radius:8px;font-weight:900;font-size:11px;cursor:pointer;color:#fff;text-shadow:0 1px 2px #000;box-shadow:0 3px 0 rgba(0,0,0,.5);font-family:inherit}
+    .lv-lava{background:linear-gradient(180deg,#f97316,#dc2626)}.lv-gold{background:linear-gradient(180deg,#facc15,#ea580c);color:#1c0505;text-shadow:none}.lv-obs{background:linear-gradient(180deg,#52525b,#27272a)}.lv-grn{background:linear-gradient(180deg,#22c55e,#15803d)}.lv-cyn{background:linear-gradient(180deg,#06b6d4,#0369a1)}.lv-red{background:linear-gradient(180deg,#ef4444,#991b1b)}
+    #chat-log{background:#111;border:1.5px solid #555;height:140px;overflow-y:auto;padding:8px;text-align:left;font-size:12px;margin-bottom:8px}
+  </style>
+</head>
+<body>
+  <div id="crosshair"></div><div id="flash"></div><div id="toast"></div><div id="announce"></div>
+
+  <div id="hud-top">
+    <div class="panel">
+      <div class="srow">
+        <span class="bux" id="bux-btn"><i>M$</i><span id="minebux">25</span> +</span>
+        <span style="color:#facc15" id="hud-pname">👑owner👑</span>
+        <span style="color:#4ade80" id="wname">Lobby</span>
+        <span id="mp-stat" style="color:#fbbf24;font-size:10px">🟡 Joining...</span>
+        <span style="color:#facc15;display:none" id="luck-hud">10x LUCK!</span>
+      </div>
+      <div id="scanner-hud"></div>
+    </div>
+    <div class="tbtns">
+      <button class="hb" id="btn-chat">Chat</button>
+      <button class="hb b" id="btn-games">Dimensions</button>
+      <button class="hb y" id="btn-bench">Bench</button>
+      <button class="hb p" id="btn-pass">Pass</button>
+      <button class="hb g" id="btn-skins">Skins</button>
+      <button class="hb r" id="btn-admin" style="display:none">ADMIN</button>
+      <button class="hb" id="btn-cam">3rd</button>
+      <button class="hb" id="btn-recall">Recall</button>
+      <button class="hb" id="btn-fly" style="display:none">Fly</button>
+    </div>
+  </div>
+
+  <div id="boss-wrap"><div id="boss-title">BOSS</div><div id="boss-bg"><div id="boss-fill"></div></div></div>
+
+  <div id="mc-bars">
+    <div class="mc-stat-row">
+      <span id="hearts-bar">❤️❤️❤️❤️❤️❤️❤️❤️❤️❤️</span>
+      <span id="hunger-bar">🍗100%</span>
+      <span id="stam-bar" style="color:#fde047">⚡100%</span>
+      <span id="shield-bar" style="color:#22d3ee;display:none">🔷0</span>
+      <span id="armor-bar" style="display:none"></span>
+    </div>
+    <div id="xp-wrap"><div id="xp-fill"></div><span id="xp-num">1</span></div>
+  </div>
+
+  <div id="hotbar"></div>
+  <div id="joy-z"><div id="joy-k"></div></div>
+  <div id="act">
+    <button class="tb m" id="btn-mine">MINE<br>/HIT</button>
+    <button class="tb b" id="btn-build">BUILD</button>
+    <button class="tb r" id="btn-roll">ROLL</button>
+    <button class="tb j" id="btn-jump">JUMP</button>
+  </div>
+
+  <div id="overlay" class="modal">
+    <div class="mc-title-card">
+      <h1 class="mc-logo">CRAFTBLOX</h1>
+      <div class="mc-splash">3 DIMENSIONS + WORKBENCH + MULTIPLAYER!</div>
+      <div class="sec" style="margin-bottom:12px">
+        <div style="font-size:11px;color:#fde047;font-weight:800">YOUR PLAYER NAME:</div>
+        <input id="mp-name" class="tin" value="👑owner👑" maxlength="16" />
+        <div style="font-size:11px;color:#38bdf8;font-weight:800">SERVER ROOM CODE:</div>
+        <input id="mp-room" class="tin" value="GLOBAL" maxlength="16" />
+      </div>
+      <button class="pbtn grn" id="start-btn" style="width:100%">JOIN MULTIPLAYER</button>
+    </div>
+  </div>
+
+  <div id="chat-modal" class="modal">
+    <div class="card" style="max-width:400px">
+      <h2>Server Chat</h2>
+      <div id="chat-log"></div>
+      <div style="display:flex;gap:6px">
+        <input id="chat-in" class="tin" placeholder="Chat or /ownername YourName..." maxlength="80" style="margin:0" onkeydown="if(event.key==='Enter')sendChat()" />
+        <button class="ab g" style="padding:0 14px" onclick="sendChat()">SEND</button>
+      </div>
+      <button class="pbtn" style="margin-top:10px" onclick="toggleModal('chat-modal',false)">BACK</button>
+    </div>
+  </div>
+
+  <div id="bench-modal" class="modal">
+    <div class="card" style="border-color:#facc15">
+      <h2>Blueprint &amp; Gem Workbench</h2>
+      <div class="sec">
+        <h3>Active Gem Socket: <span id="gem-lbl" style="color:#4ade80">None</span></h3>
+        <div style="display:flex;gap:6px;flex-wrap:wrap">
+          <button class="ab r" onclick="socketGem('flame')">Flame Gem (Burn) [25 M$]</button>
+          <button class="ab" onclick="socketGem('frost')">Frost Gem (Slow) [25 M$]</button>
+          <button class="ab g" onclick="socketGem('speed')">Speed Gem (+Spd) [25 M$]</button>
+        </div>
+      </div>
+      <div class="grid" id="bench-grid"></div>
+      <button class="pbtn" onclick="toggleModal('bench-modal',false)">BACK</button>
+    </div>
+  </div>
+
+  <div id="kick-modal" class="modal" style="z-index:45">
+    <div class="card" style="border-color:#ef4444;max-width:340px">
+      <h2 id="kick-t">DISCONNECTED</h2>
+      <p id="kick-m" style="font-size:13px;color:#fca5a5"></p>
+      <button class="pbtn grn" onclick="location.reload()">RECONNECT</button>
+    </div>
+  </div>
+
+  <div id="inv-modal" class="modal">
+    <div class="mc-win">
+      <div class="mc-top">
+        <div class="mc-col" id="inv-armor"></div>
+        <div class="mc-player-box">
+          <div id="inv-pname">👑owner👑</div>
+          <svg width="46" height="66" viewBox="0 0 32 48">
+            <rect x="8" y="0" width="16" height="16" fill="#d6a374"/><rect x="8" y="0" width="16" height="4" fill="#4a2f18"/>
+            <rect x="10" y="6" width="3" height="2" fill="#fff"/><rect x="12" y="6" width="2" height="2" fill="#3b82f6"/>
+            <rect x="19" y="6" width="3" height="2" fill="#fff"/><rect x="18" y="6" width="2" height="2" fill="#3b82f6"/>
+            <rect x="13" y="11" width="6" height="2" fill="#7c4a2d"/><rect x="8" y="16" width="16" height="16" fill="#06b6d4"/>
+            <rect x="2" y="16" width="6" height="16" fill="#d6a374"/><rect x="24" y="16" width="6" height="16" fill="#d6a374"/>
+            <rect x="8" y="32" width="7" height="16" fill="#1e3a8a"/><rect x="17" y="32" width="7" height="16" fill="#1e3a8a"/>
+          </svg>
+          <div style="font-size:8px;color:#4ade80" id="inv-tool-lbl">Hand</div>
+        </div>
+        <div class="mc-col mc-off" id="inv-off"></div>
+        <div class="mc-craft-area">
+          <div style="font-size:10px;font-weight:800;color:#3f3f3f;margin-bottom:4px">Crafting</div>
+          <div class="mc-cwrap">
+            <div class="mc-2x2" id="inv-craft"></div>
+            <div class="mc-arrow">&rarr;</div>
+            <div id="inv-out" style="width:34px"></div>
+          </div>
+          <div style="display:flex;gap:4px;margin-top:8px">
+            <button class="mc-btn" onclick="toggleModal('inv-modal',false);toggleModal('bench-modal',true)">Bench</button>
+            <button class="mc-btn" onclick="clearCraft();toggleModal('inv-modal',false)">Done</button>
+          </div>
+        </div>
+      </div>
+      <div class="mc-grid9" id="inv-back"></div>
+      <div class="mc-grid9" id="inv-hot" style="margin-bottom:0"></div>
+    </div>
+  </div>
+
+  <div id="games-modal" class="modal">
+    <div class="card">
+      <h2>Dimensions, 1v1 &amp; Maps</h2>
+      <div class="grid" id="games-grid"></div>
+      <div class="sec">
+        <h3>Make Custom Infinite Map (100 M$)</h3>
+        <input id="new-g-name" class="tin" placeholder="Map Name (e.g. Emerald Land)" maxlength="24" />
+        <div style="display:flex;gap:6px;flex-wrap:wrap">
+          <button class="ab g" onclick="createCustomGame('flat')">Make Flat Map (100 M$)</button>
+          <button class="ab" onclick="createCustomGame('hills')">Make Biomes Map (100 M$)</button>
+        </div>
+      </div>
+      <button class="pbtn" onclick="toggleModal('games-modal',false)">BACK</button>
+    </div>
+  </div>
+
+  <div id="pass-modal" class="modal">
+    <div class="card">
+      <div style="display:flex;justify-content:space-between;align-items:center">
+        <h2>Battle Pass</h2>
+        <span id="bp-vip-tag" style="font-size:12px;font-weight:900;color:#facc15">FREE TRACK</span>
+      </div>
+      <p style="font-size:12px;color:#cbd5e1;margin:4px 0">Level <b id="bp-lvl">1</b> &bull; XP: <b id="bp-xp">0</b>/100</p>
+      <button class="ab p" id="buy-vip-btn" style="margin-bottom:8px;padding:8px 14px;font-size:12px" onclick="buyVipPass()">Unlock VIP Pass (60 M$)</button>
+      <div class="grid" id="bp-grid"></div>
+      <button class="pbtn" onclick="toggleModal('pass-modal',false)">BACK</button>
+    </div>
+  </div>
+
+  <div id="skins-modal" class="modal">
+    <div class="card">
+      <div style="display:flex;justify-content:space-between;align-items:center">
+        <h2>Skins &amp; Gear</h2>
+        <span class="bux" onclick="toggleModal('skins-modal',false);toggleModal('buybux-modal',true)"><i>M$</i><span id="sk-bux">25</span> +</span>
+      </div>
+      <div class="sec"><h3>Skins</h3><div class="grid" id="skins-grid"></div></div>
+      <div class="sec"><h3>Gear</h3><div class="grid" id="gear-grid"></div></div>
+      <button class="pbtn" onclick="toggleModal('skins-modal',false)">BACK</button>
+    </div>
+  </div>
+
+  <div id="buybux-modal" class="modal">
+    <div class="card" style="max-width:420px">
+      <h2>Get MineBux (Demo Store)</h2>
+      <p style="font-size:11.5px;color:#cbd5e1;margin:4px 0 8px">Free Safari Demo Store (<b>$0 real money charged</b>). Real-money billing requires an App Store app or backend payment server.</p>
+      <div class="grid">
+        <div class="box own"><b>100 M$ Pouch</b><span style="color:#94a3b8">$0.99 (Demo)</span><button class="ab g" onclick="simBuyBux(100)">Claim Free</button></div>
+        <div class="box own"><b>500 M$ Chest</b><span style="color:#94a3b8">$4.99 (Demo)</span><button class="ab g" onclick="simBuyBux(500)">Claim Free</button></div>
+        <div class="box own"><b>2,500 M$ Vault</b><span style="color:#94a3b8">$19.99 (Demo)</span><button class="ab g" onclick="simBuyBux(2500)">Claim Free</button></div>
+      </div>
+      <button class="pbtn" onclick="toggleModal('buybux-modal',false)">DONE</button>
+    </div>
+  </div>
+
+  <div id="pin-modal" class="modal" style="z-index:35">
+    <div class="holo-card">
+      <div class="holo-hdr"><span>SYSTEM SECURED</span><span class="holo-stat" id="pin-stat">ACCESS PIN</span></div>
+      <div class="holo-lock">
+        <svg width="52" height="52" viewBox="0 0 64 64" fill="none">
+          <circle cx="32" cy="34" r="26" stroke="#c084fc" stroke-width="2" stroke-dasharray="6 4"/>
+          <path d="M22 28V22a10 10 0 0 1 20 0v6" stroke="#22d3ee" stroke-width="4" stroke-linecap="round"/>
+          <rect x="17" y="28" width="30" height="22" rx="4" fill="rgba(34,211,238,0.18)" stroke="#22d3ee" stroke-width="3"/>
+          <circle cx="32" cy="38" r="3" fill="#f472b6"/><path d="M32 40v5" stroke="#f472b6" stroke-width="2.5" stroke-linecap="round"/>
+        </svg>
+        <div style="text-align:left">
+          <div id="pin-t" style="font-weight:900;font-size:15px;color:#22d3ee">OWNER PIN</div>
+          <div id="pin-d" style="font-size:11px;color:#cbd5e1;margin-top:2px">Tap 4+ digits</div>
+        </div>
+      </div>
+      <div class="holo-dots" id="pin-dots">----</div>
+      <div class="holo-pad">
+        <div class="kgrid">
+          <button class="kbtn" onclick="pinKey('1')">1</button><button class="kbtn" onclick="pinKey('2')">2</button><button class="kbtn" onclick="pinKey('3')">3</button>
+          <button class="kbtn" onclick="pinKey('4')">4</button><button class="kbtn purp" onclick="pinKey('5')">5</button><button class="kbtn cyan" onclick="pinKey('6')">6</button>
+          <button class="kbtn" onclick="pinKey('7')">7</button><button class="kbtn cyan" onclick="pinKey('8')">8</button><button class="kbtn purp" onclick="pinKey('9')">9</button>
+          <button class="kbtn" style="font-size:13px;border-color:#ef4444;color:#fca5a5" onclick="pinKey('CLR')">CLR</button>
+          <button class="kbtn" onclick="pinKey('0')">0</button>
+          <button class="kbtn cyan" style="font-size:14px" onclick="pinKey('OK')">OK</button>
+        </div>
+      </div>
+      <button class="ab r" style="margin-top:10px;padding:7px 18px" onclick="toggleModal('pin-modal',false)">CANCEL</button>
+    </div>
+  </div>
+
+  <div id="admin-modal" class="modal">
+    <div class="card">
+      <div class="lava-bar"><span>LAVA ADMIN CONTROL PANEL</span><span class="bux"><i>M$</i><span id="adm-bux">25</span></span></div>
+      <div class="sec">
+        <h3>GLOBAL STREAM EVENTS (ALL PLAYERS!)</h3>
+        <div style="display:flex;gap:5px;flex-wrap:wrap">
+          <button class="lv-btn lv-lava" onclick="triggerLavaWave(true)">LAVA WAVE (ALL)</button>
+          <button class="lv-btn lv-gold" onclick="spawnDrop(8,true)">CRATE RAIN (ALL)</button>
+          <button class="lv-btn lv-cyn" onclick="activateLuck(true)">10x LUCK (ALL)</button>
+          <button class="lv-btn lv-obs" onclick="toggleDisco(true)">DISCO SKY (ALL)</button>
+          <button class="lv-btn lv-grn" onclick="spawnLuckyOre()">SPAWN BUX ORE</button>
+        </div>
+      </div>
+      <div class="sec">
+        <h3>OWNER COMMANDS &amp; ADMIN-ONLY FLY</h3>
+        <div style="display:flex;gap:5px;flex-wrap:wrap">
+          <button class="lv-btn lv-red" id="ab-str" onclick="cycleStr()">STR:1x</button>
+          <button class="lv-btn lv-cyn" id="ab-spd" onclick="cycleSpd()">SPD:1x</button>
+          <button class="lv-btn lv-gold" id="ab-jmp" onclick="toggleSuperJump()">JMP:1x</button>
+          <button class="lv-btn lv-obs" id="ab-god" onclick="toggleGod()">GOD:OFF</button>
+          <button class="lv-btn lv-lava" id="ab-fly" onclick="toggleAdminFly()">FLY:OFF</button>
+          <button class="lv-btn lv-grn" onclick="giveAdminKit()">+ALL GEAR &amp; BLOCKS</button>
+          <button class="lv-btn lv-grn" onclick="player.hp=10;player.hunger=100;player.stamina=100;updBars();showToast('100% HEALED!')">FULL HEAL</button>
+        </div>
+      </div>
+      <div class="sec">
+        <h3>ECONOMY, PASS &amp; BOSS SPAWNS</h3>
+        <div style="display:flex;gap:5px;flex-wrap:wrap">
+          <button class="lv-btn lv-grn" onclick="addBux(500,'Lava Drop')">+500 M$</button>
+          <button class="lv-btn lv-grn" onclick="addBux(5000,'Owner Grant')">+5,000 M$</button>
+          <button class="lv-btn lv-gold" onclick="addXP(500);vipPass=true;saveAll();renderPass();showToast('MAX PASS!')">MAX PASS</button>
+          <button class="lv-btn lv-cyn" onclick="adminUnlockAll()">UNLOCK ALL</button>
+          <button class="lv-btn lv-red" onclick="spawnBossHere()">SPAWN BOSS</button>
+          <button class="lv-btn lv-red" onclick="nukeMobs()">NUKE MOBS</button>
+          <button class="lv-btn lv-obs" onclick="killBossNow()">KILL BOSS</button>
+          <button class="lv-btn lv-grn" onclick="spawnMobNear()">+ MOB</button>
+          <button class="lv-btn lv-grn" onclick="spawnAnimalNear()">+ ANIMAL</button>
+        </div>
+      </div>
+      <div class="sec">
+        <h3>GLOBAL SERVER BANNER (ALL PLAYERS)</h3>
+        <div style="display:flex;gap:5px">
+          <input id="ann-in" class="tin" placeholder="ANNOUNCE TO EVERYONE..." style="margin:0;padding:6px;border-color:#f97316" />
+          <button class="lv-btn lv-lava" onclick="sendAnnounce()">SEND</button>
+        </div>
+      </div>
+      <div class="sec">
+        <h3>ONLINE PLAYERS &amp; BOTS (M$, FREEZE, KICK, BAN)</h3>
+        <div style="display:flex;gap:5px;flex-wrap:wrap;margin-bottom:6px">
+          <button class="lv-btn lv-gold" id="ab-frz" onclick="botsFrozen=!botsFrozen;document.getElementById('ab-frz').textContent=botsFrozen?'UNFREEZE':'FREEZE BOTS'">FREEZE BOTS</button>
+          <button class="lv-btn lv-cyn" onclick="bots.forEach(b=>{b.x=player.x+1.2;b.z=player.z-1.2;b.y=player.y;});showToast('TP ALL BOTS!')">TP BOTS</button>
+        </div>
+        <div id="adm-players"></div>
+        <div id="adm-banned" style="font-size:11px;color:#fca5a5;margin-top:5px"></div>
+      </div>
+      <div style="display:flex;gap:6px;justify-content:center;flex-wrap:wrap;margin-top:6px">
+        <button class="lv-btn lv-cyn" onclick="startNewPin()">MAKE NEW PIN</button>
+        <button class="lv-btn lv-gold" onclick="lockAdmin()">LOCK PANEL</button>
+        <button class="lv-btn lv-red" onclick="resetSave()">WIPE SAVE</button>
+        <button class="lv-btn lv-obs" onclick="toggleModal('admin-modal',false)">CLOSE</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+  <script src="https://unpkg.com/mqtt/dist/mqtt.min.js"></script>
+  <script src="game.js"></script>
+</body>
+</html>
